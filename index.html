@@ -271,9 +271,8 @@
   </main>
 
   <script>
-    // 🔧 SET THIS TO YOUR MAKE WEBHOOK URL
+    // 🔧 Your Make webhook URL
     const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/tz2cj70cjfxv2i3q20qzmfugdncy64b5";
-
 
     const form = document.getElementById("ai-form");
     const statusEl = document.getElementById("status");
@@ -364,7 +363,18 @@
           body: JSON.stringify(payload)
         });
 
-        const data = await res.json().catch(() => ({}));
+        const raw = await res.text();
+        let data = {};
+
+        // Try JSON first (for when Make returns proper JSON)
+        try {
+          data = JSON.parse(raw);
+        } catch (err) {
+          // If it's not JSON, treat raw text as the briefing itself
+          if (raw && raw.trim()) {
+            data.briefing_text = raw;
+          }
+        }
 
         if (!res.ok || !data.briefing_text) {
           throw new Error("No valid response from backend.");
@@ -384,4 +394,3 @@
   </script>
 </body>
 </html>
-
