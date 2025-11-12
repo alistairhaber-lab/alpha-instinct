@@ -1,5 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Alpha Instinct – Survival Briefing Generator</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      margin: 0;
+      padding: 0;
+      color: #eee;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    /* STATUS + HEADERS */
+    #topStatus {
+      font-size: 18px;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    #topStatus.loading {
+      background: #222;
+      color: #ffc107;
+    }
+
+    #topStatus.error {
+      background: #331a1a;
+      color: #ff4444;
+    }
+
+    #topStatus span {
+      font-weight: bold;
+    }
+
+    .status-text {
+      margin-bottom: 10px;
+      color: #ccc;
+    }
+
+    .status-text.success {
+      color: #5cb85c;
+    }
+
+    .status-text.error {
+      color: #ff4444;
+    }
+
+    /* INPUT PANEL */
+    .panel {
+      background: #222;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #000;
+      color: #eee;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #007bff;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+
+    /* SCENARIO BUTTONS */
+    .scenario-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .scenario-btn {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      background: #333;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #ccc;
+    }
+
+    .scenario-btn.active {
+      background: #007bff;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    /* BRIEFING DISPLAY */
+    .briefing-container {
+      background: #ffffff;
+      color: #111;
+      padding: 25px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      margin-top: 20px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      line-height: 1.5;
+    }
+
+    .briefing-container h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 26px;
+    }
+
+    .briefing-container h2 {
+      margin-top: 22px;
+      margin-bottom: 10px;
+      color: #333;
+      font-size: 20px;
+      border-bottom: 1px solid #e2e2e2;
+      padding-bottom: 5px;
+    }
+
+    .briefing-container ul {
+      margin: 10px 0 20px 25px;
+      padding-left: 0;
+    }
+
+    .briefing-container li {
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+
+    .briefing-container .address {
+      text-align: center;
+      margin-bottom: 25px;
+      font-weight: bold;
+      font-size: 15px;
+    }
+
+    /* TOOLS PANEL (COMPASS/FLASHLIGHT) */
+    .tool-btn {
+      padding: 10px;
+      background: #333;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      display: inline-block;
+    }
+
+    .tool-panel {
+      background: #222;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .tool-panel.visible {
+      display: block;
+    }
+
+    #compassNeedle {
+      width: 120px;
+      transition: transform 0.2s linear;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div id="topStatus">Status: <span>Ready</span></div>
+    <div id="status" class="status-text"></div>
+
+    <!-- SCENARIO BUTTONS -->
+    <div id="scenarioButtons" class="scenario-buttons">
+      <div class="scenario-btn active" data-value="blackout">Blackout</div>
+      <div class="scenario-btn" data-value="civil_unrest">Civil Unrest</div>
+      <div class="scenario-btn" data-value="natural_disaster">Natural Disaster</div>
+    </div>
+
+    <!-- HIDDEN SELECT (used by JS) -->
+    <select id="scenario" style="display:none;">
+      <option value="blackout" selected>Blackout</option>
+      <option value="civil_unrest">Civil Unrest</option>
+      <option value="natural_disaster">Natural Disaster</option>
+    </select>
+
+    <!-- INPUT PANEL -->
+    <div class="panel">
+      <label>Full Address</label>
+      <input id="address" placeholder="Enter location...">
+
+      <label>
+        <input type="checkbox" id="useLocation">
+        Use GPS instead
+      </label>
+
+      <label>Latitude</label>
+      <input id="lat" readonly placeholder="GPS latitude">
+
+      <label>Longitude</label>
+      <input id="lon" readonly placeholder="GPS longitude">
+
+      <label>Household (e.g. '2 adults, 1 child')</label>
+      <input id="household">
+
+      <label>Vehicles (e.g. '1 SUV')</label>
+      <input id="vehicles">
+
+      <label>Medical Needs</label>
+      <input id="meds">
+
+      <label>Email (optional)</label>
+      <input id="email">
+
+      <button id="submitBtn">Generate Briefing</button>
+    </div>
+
+    <!-- COMPOSITE TOOLS -->
+    <div class="tool-btn" id="compassTool">🧭 Compass</div>
+    <div id="compassPanel" class="tool-panel">
+      <div id="compassStatus">Waiting for movement…</div>
+      <img id="compassNeedle" src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Compass_needle.svg/240px-Compass_needle.svg.png">
+      <div id="compassValue">0°</div>
+    </div>
+
+    <div class="tool-btn" id="flashlightTool">🔦 Flashlight</div>
+    <div id="flashlightPanel" class="tool-panel">
+      <button id="flashlightToggle">Toggle Flashlight</button>
+      <div id="flashlightStatus"></div>
+    </div>
+
+    <!-- WHERE THE BRIEFING HTML WILL BE INJECTED -->
+    <div id="briefingBox" class="briefing-container"></div>
+  </div>
+
 <script>
-  // Your Make webhook URL
   const MAKE_WEBHOOK_URL = "https://hook.us2.make.com/tz2cj70cjfxv2i3q20qzmfugdncy64b5";
 
   const statusEl = document.getElementById("status");
@@ -11,6 +265,7 @@
   const useLocationCheckbox = document.getElementById("useLocation");
   const latInput = document.getElementById("lat");
   const lonInput = document.getElementById("lon");
+
   const formInputs = {
     address: document.getElementById("address"),
     household: document.getElementById("household"),
@@ -19,33 +274,19 @@
     email: document.getElementById("email")
   };
 
-  // Tools
-  const compassTool = document.getElementById("compassTool");
-  const flashlightTool = document.getElementById("flashlightTool");
-  const compassPanel = document.getElementById("compassPanel");
-  const flashlightPanel = document.getElementById("flashlightPanel");
-  const compassNeedle = document.getElementById("compassNeedle");
-  const compassValue = document.getElementById("compassValue");
-  const compassStatus = document.getElementById("compassStatus");
-  const flashlightToggle = document.getElementById("flashlightToggle");
-  const flashlightStatus = document.getElementById("flashlightStatus");
-
-  let pendingLocation = false;
-  let compassActive = false;
-  let orientationHandler = null;
-  let flashlightStream = null;
-
-  // Scenario buttons -> hidden select
+  /* SCENARIO BUTTON HANDLER */
   scenarioButtons.addEventListener("click", (e) => {
     const btn = e.target.closest(".scenario-btn");
     if (!btn) return;
+
     document.querySelectorAll(".scenario-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
+
     const value = btn.getAttribute("data-value");
     scenarioSelect.value = value;
   });
 
-  // GPS toggle
+  /* GPS HANDLER */
   useLocationCheckbox.addEventListener("change", () => {
     if (!useLocationCheckbox.checked) {
       latInput.value = "";
@@ -54,84 +295,54 @@
     }
 
     if (!navigator.geolocation) {
-      statusEl.textContent = "Geolocation not supported on this device.";
+      statusEl.textContent = "Geolocation not supported.";
       statusEl.className = "status-text error";
       useLocationCheckbox.checked = false;
       return;
     }
 
-    statusEl.textContent = "Requesting GPS position…";
-    statusEl.className = "status-text";
     topStatus.classList.add("loading");
     topStatus.querySelector("span").textContent = "Locking location";
 
-    pendingLocation = true;
-
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
-        latInput.value = latitude;
-        lonInput.value = longitude;
-        statusEl.textContent = "Location locked.";
+        latInput.value = pos.coords.latitude;
+        lonInput.value = pos.coords.longitude;
+
+        statusEl.textContent = "GPS locked.";
         statusEl.className = "status-text success";
+
         topStatus.classList.remove("loading");
         topStatus.querySelector("span").textContent = "Ready with GPS";
-        pendingLocation = false;
       },
-      (err) => {
-        console.error(err);
-        statusEl.textContent = "Could not get GPS. You can still use your typed address.";
+      () => {
+        statusEl.textContent = "Failed to get GPS.";
         statusEl.className = "status-text error";
         useLocationCheckbox.checked = false;
+
         topStatus.classList.remove("loading");
-        topStatus.querySelector("span").textContent = "Ready (no GPS)";
-        pendingLocation = false;
-      },
-      { enableHighAccuracy: false, timeout: 7000, maximumAge: 60000 }
+        topStatus.querySelector("span").textContent = "Ready";
+      }
     );
   });
 
-  // Submit handler – **this is the important changed part**
+  /* SUBMIT HANDLER */
   submitBtn.addEventListener("click", async (e) => {
     e.preventDefault();
 
-    if (pendingLocation) {
-      statusEl.textContent = "Still acquiring location…";
-      statusEl.className = "status-text";
-      return;
-    }
-
-    const scenario = scenarioSelect.value;
-    const full_address = formInputs.address.value || "";
-    const household = formInputs.household.value || "";
-    const vehicles = formInputs.vehicles.value || "";
-    const medications = formInputs.meds.value || "";
-    const email = formInputs.email.value || "";
-    const lat = latInput.value ? Number(latInput.value) : null;
-    const lon = lonInput.value ? Number(lonInput.value) : null;
-
-    if (!full_address.trim()) {
-      statusEl.textContent = "Add at least a rough location.";
-      statusEl.className = "status-text error";
-      return;
-    }
-
     const payload = {
-      scenario,
-      full_address,
-      household,
-      vehicles,
-      medications,
-      email,
-      lat,
-      lon
+      scenario: scenarioSelect.value,
+      full_address: formInputs.address.value,
+      household: formInputs.household.value,
+      vehicles: formInputs.vehicles.value,
+      medications: formInputs.meds.value,
+      email: formInputs.email.value,
+      lat: latInput.value ? Number(latInput.value) : null,
+      lon: lonInput.value ? Number(lonInput.value) : null
     };
 
-    statusEl.textContent = "Generating briefing…";
-    statusEl.className = "status-text";
     submitBtn.disabled = true;
     topStatus.classList.add("loading");
-    topStatus.classList.remove("error");
     topStatus.querySelector("span").textContent = "Building your plan";
 
     try {
@@ -141,171 +352,34 @@
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) {
-        throw new Error("Server responded with " + res.status);
-      }
-
       const raw = await res.text();
-      let htmlToRender = "";
+      let htmlOut = raw;
 
-      // 1) If backend returns JSON { briefing_text: "..." }
       try {
-        const maybeJson = JSON.parse(raw);
-        if (maybeJson && typeof maybeJson.briefing_text === "string") {
-          htmlToRender = maybeJson.briefing_text;
-        }
-      } catch {
-        // 2) Not JSON → treat the whole thing as HTML from Grok
-        htmlToRender = raw;
-      }
+        const maybe = JSON.parse(raw);
+        if (maybe.briefing_text) htmlOut = maybe.briefing_text;
+      } catch {}
 
-      if (!htmlToRender || !htmlToRender.trim()) {
-        throw new Error("Empty briefing from backend.");
-      }
-
-      // 🔥 Render as real HTML, not plain text
-      briefingBox.innerHTML = htmlToRender;
-
-      statusEl.textContent = "Briefing generated.";
+      briefingBox.innerHTML = htmlOut;
+      statusEl.textContent = "Briefing generated";
       statusEl.className = "status-text success";
-      topStatus.classList.remove("loading", "error");
-      topStatus.querySelector("span").textContent = "Briefing updated";
-    } catch (err) {
+
+      topStatus.classList.remove("loading");
+      topStatus.querySelector("span").textContent = "Ready";
+    } 
+    catch (err) {
       console.error(err);
-      statusEl.textContent = "Error generating briefing. Try again in a moment.";
+      statusEl.textContent = "Error generating briefing.";
       statusEl.className = "status-text error";
+
       topStatus.classList.remove("loading");
       topStatus.classList.add("error");
-      topStatus.querySelector("span").textContent = "Error from pipeline";
-    } finally {
+      topStatus.querySelector("span").textContent = "Error";
+    } 
+    finally {
       submitBtn.disabled = false;
     }
   });
-
-  // Compass helpers
-  function stopCompass() {
-    if (orientationHandler) {
-      window.removeEventListener("deviceorientationabsolute", orientationHandler);
-      window.removeEventListener("deviceorientation", orientationHandler);
-      orientationHandler = null;
-    }
-    compassActive = false;
-    compassPanel.classList.remove("visible");
-  }
-
-  function startCompass() {
-    if (!("DeviceOrientationEvent" in window)) {
-      compassStatus.textContent = "Compass not supported on this device.";
-      compassPanel.classList.add("visible");
-      return;
-    }
-
-    const enable = () => {
-      compassPanel.classList.add("visible");
-      compassStatus.textContent = "Move device slowly to get stable heading.";
-      compassActive = true;
-
-      orientationHandler = (event) => {
-        let heading = null;
-
-        if (typeof event.webkitCompassHeading === "number") {
-          heading = event.webkitCompassHeading; // iOS
-        } else if (typeof event.alpha === "number") {
-          heading = 360 - event.alpha; // others
-        }
-
-        if (heading != null && !isNaN(heading)) {
-          const normalized = (heading + 360) % 360;
-          compassNeedle.style.transform = `translateX(-50%) rotate(${normalized}deg)`;
-          compassValue.textContent = `${Math.round(normalized)}°`;
-        }
-      };
-
-      window.addEventListener("deviceorientationabsolute", orientationHandler, true);
-      window.addEventListener("deviceorientation", orientationHandler, true);
-    };
-
-    if (
-      typeof DeviceOrientationEvent !== "undefined" &&
-      typeof DeviceOrientationEvent.requestPermission === "function"
-    ) {
-      DeviceOrientationEvent.requestPermission()
-        .then((state) => {
-          if (state === "granted") enable();
-          else {
-            compassStatus.textContent = "Permission denied for motion sensors.";
-            compassPanel.classList.add("visible");
-          }
-        })
-        .catch(() => {
-          compassStatus.textContent = "Unable to access motion sensors.";
-          compassPanel.classList.add("visible");
-        });
-    } else {
-      enable();
-    }
-  }
-
-  compassTool.addEventListener("click", () => {
-    if (compassActive) {
-      stopCompass();
-    } else {
-      stopCompass();
-      startCompass();
-    }
-  });
-
-  // Flashlight toggle (best-effort, not all devices support this)
-  async function toggleFlashlight() {
-    if (flashlightStream) {
-      flashlightStream.getTracks().forEach((t) => t.stop());
-      flashlightStream = null;
-      flashlightToggle.classList.remove("active");
-      flashlightStatus.textContent = "Flashlight off.";
-      return;
-    }
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      flashlightStatus.textContent = "Flashlight control not supported.";
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }
-      });
-      const track = stream.getVideoTracks()[0];
-      const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-
-      if (capabilities.torch) {
-        await track.applyConstraints({ advanced: [{ torch: true }] });
-        flashlightStream = stream;
-        flashlightToggle.classList.add("active");
-        flashlightStatus.textContent = "Flashlight on. Tap again to turn off.";
-      } else {
-        flashlightStatus.textContent = "Torch not supported; using camera only.";
-        flashlightStream = stream;
-        flashlightToggle.classList.add("active");
-      }
-    } catch (err) {
-      console.error(err);
-      flashlightStatus.textContent = "Unable to access flashlight/camera.";
-    }
-  }
-
-  flashlightTool.addEventListener("click", () => {
-    const visible = flashlightPanel.classList.contains("visible");
-    flashlightPanel.classList.toggle("visible", !visible);
-  });
-
-  flashlightToggle.addEventListener("click", (e) => {
-    e.preventDefault();
-    toggleFlashlight();
-  });
-
-  window.addEventListener("beforeunload", () => {
-    if (flashlightStream) {
-      flashlightStream.getTracks().forEach((t) => t.stop());
-    }
-  });
 </script>
+</body>
+</html>
