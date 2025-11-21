@@ -689,7 +689,7 @@
       );
     });
 
-    // Submit handler (expects JSON { briefing_html: "<h2>...</h2>..." })
+    // Submit handler
     submitBtn.addEventListener("click", async (e) => {
       e.preventDefault();
 
@@ -739,27 +739,37 @@
           body: JSON.stringify(payload)
         });
 
-        if (!res.ok) {
-          throw new Error("Network response was not ok");
+        const raw = await res.text();
+
+        if (!res.ok || !raw.trim()) {
+          throw new Error("No valid response from backend.");
         }
 
-        // Expect JSON: { briefing_html: "<h2>...</h2>..." }
-        const data = await res.json();
-
-        if (!data || !data.briefing_html) {
-          throw new Error("No briefing_html field in response.");
+        // Parse the HTML we got back and extract only the inner briefing content
+        let extracted = raw;
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(raw, "text/html");
+          const inner = doc.getElementById("briefing");
+          if (inner) {
+            extracted = inner.innerHTML;
+          }
+        } catch (parseErr) {
+          console.warn("Could not parse HTML response cleanly, falling back to raw.", parseErr);
         }
+
+        const timestamp = new Date().toLocaleString();
 
         statusEl.textContent = "Briefing generated.";
         statusEl.className = "status-text success";
         topStatus.classList.remove("loading", "error");
         topStatus.querySelector("span").textContent = "Briefing updated";
 
-        const now = new Date().toLocaleString();
-        const header = `<p><em>Generated: ${now}</em></p>`;
-
-        // Render the HTML from the backend
-        briefingBox.innerHTML = header + data.briefing_html;
+        briefingBox.innerHTML =
+          `<div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif; font-size: 11px; color: #9ca3af; margin-bottom: 8px;">
+             Generated: ${timestamp}
+           </div>` +
+          extracted;
       } catch (err) {
         console.error(err);
         statusEl.textContent = "Error generating briefing. Try again in a moment.";
